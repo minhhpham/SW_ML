@@ -5,22 +5,26 @@ from tokenizers.NGram import nGram_tokenize
 from models.Transformer import Transformer
 from training.learning_rate import create_lr_scheduler
 from training import train_process
+from math import ceil
+import functools
 
 
+NGRAM = 3
 N_SAMPLES = 1e8
-INPUT_DIM = 24
+INPUT_DIM = ceil(96 / NGRAM)
 MODEL_SIZE = 512
 DATA_BATCH_SIZE = 2048
+tokenize_3gram = functools.partial(nGram_tokenize, N=NGRAM)
 
 
 def main() -> None:
     # load data
-    vocab_4gram = create_NGram_vocab(4)
+    vocab_nGram = create_NGram_vocab(NGRAM)
     x1, x2, y = batch_load_and_preprocess(
         datapath="/data/minhpham/SW-ML-data/SRR622461",
         n_samples_limit=N_SAMPLES,
-        tokenizer=nGram_tokenize,
-        vocab=vocab_4gram,
+        tokenizer=tokenize_3gram,
+        vocab=vocab_nGram,
         input_fixed_dim=INPUT_DIM
     )
     # split train, validation, test 80/10/10
@@ -41,7 +45,7 @@ def main() -> None:
 
     # model
     model = Transformer(
-        vocab_size=len(vocab_4gram),
+        vocab_size=len(vocab_nGram),
         stack_size=4,
         d_model=MODEL_SIZE,
         d_feed_fwd=2048,

@@ -67,3 +67,7 @@ class Transformer(nn.Module):
             mask=mask
         )
         return self.linear_output(torch.flatten(x, start_dim=1)).relu()
+
+
+def calculate_mask(x1: Tensor, x2: Tensor):
+    return torch.logical_or(x1 != 0, x2 != 0).unsqueeze(-2)

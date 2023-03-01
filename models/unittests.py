@@ -3,7 +3,7 @@ import sys
 import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
-from models.Transformer import Transformer  # noqa
+from models.Transformer import Transformer, calculate_mask  # noqa
 import torch  # noqa
 from tokenizers.vocab import create_NGram_vocab  # noqa
 from tokenizers.NGram import nGram_tokenize  # noqa
@@ -39,9 +39,7 @@ def test1() -> None:
         dropout=0.1
     )
     # mask out positions where x1 or x2 are not padded
-    mask = (
-        torch.logical_or(x1 != 0, x2 != 0)
-    ).unsqueeze(-2)  # 0 is index of padding word
+    mask = calculate_mask(x1, x2)
     y_hat = model(x1, x2, mask)
     print("y_hat: ", y_hat.shape)
     print(y_hat)

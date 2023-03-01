@@ -1,6 +1,7 @@
 from typing import Iterable, Tuple, Callable
 import torch
 from torch import Tensor, nn
+from tqdm import tqdm
 
 
 def evaluate_model(
@@ -21,7 +22,7 @@ def evaluate_model(
     total_loss = 0
     n_samples_processed = 0
     with torch.no_grad():
-        for x1, x2, y in batch_iter:
+        for x1, x2, y in tqdm(batch_iter):
             # mask out the blank positions that were padded with index 0
             mask = (
                 torch.logical_or(x1 != 0, x2 != 0)
