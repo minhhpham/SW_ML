@@ -13,7 +13,7 @@ NGRAM = 3
 N_SAMPLES = 1e8
 INPUT_DIM = ceil(96 / NGRAM)
 MODEL_SIZE = 512
-DATA_BATCH_SIZE = 2048
+DATA_BATCH_SIZE = 4096
 tokenize_3gram = functools.partial(nGram_tokenize, N=NGRAM)
 
 

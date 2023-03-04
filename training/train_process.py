@@ -8,6 +8,7 @@ from models.Transformer import Transformer, calculate_mask
 from training.batch import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 monitor = SummaryWriter()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def run_epoch(
@@ -19,7 +20,6 @@ def run_epoch(
     scheduler: torch.optim.lr_scheduler._LRScheduler,
     accum_iter=1,
     verbose_freq=40,
-    gpu_id=0,
 ) -> Tuple[float]:
     """Run all data through a model for a single epoch
 
@@ -39,12 +39,11 @@ def run_epoch(
     epoch_loss = 0
     for i, batch in tqdm(enumerate(batch_iter), total=len(batch_iter)):
         x1, x2, y = batch
-        x1 = x1.cuda()
-        x2 = x2.cuda()
-        y = y.cuda()
+        x1 = x1.to(device)
+        x2 = x2.to(device)
+        y = y.to(device)
         # mask out the blank positions that were padded with index 0
         mask = calculate_mask(x1, x2)
-        mask = mask.cuda()
         y_hat = model.forward(x1, x2, mask)
         loss = loss_func(y_hat, y)
         loss_value = loss.item()
@@ -85,24 +84,24 @@ def train_main(
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
     batch_size=64,
-    gpu_id=0,
     num_epochs=100,
     model_name="Transformer",
     verbose_freq=40,
-):
-    torch.cuda.set_device(gpu_id)
-    model.cuda(gpu_id)
+) -> nn.Module:
     # create data loaders
     x1, x2, y = train_data
     dataloader_train = DataLoader(x1, x2, y, batch_size=batch_size)
     x1, x2, y = valid_data
     dataloader_valid = DataLoader(x1, x2, y, batch_size=batch_size)
-    # summarize model
-    summarize_model(model, x1[:100, :].cuda(), x2[:100, :].cuda())
+    # summarize model, at this point, model and data are both on CPU
+    # we use CPU to summarize model to avoid bugs
+    summarize_model(model, x1[:100, :], x2[:100, :])
     del x1, x2, y
     # training loop
+    model = torch.nn.DataParallel(model)
+    model = model.to(device)
     for epoch in range(num_epochs):
-        print(f"----[GPU {gpu_id}] Epoch {epoch} Training ----", flush=True)
+        print(f"---- Epoch {epoch} Training ----", flush=True)
         start_time = time.time()
         model.train()
         train_loss = run_epoch(
@@ -127,10 +126,11 @@ def train_main(
         monitor.flush()
 
         # save model
-        torch.save(model.state_dict(), f"saved_models/{model_name}_{epoch}.pt")
+        torch.save(model.module.state_dict(),
+                   f"saved_models/{model_name}_{epoch}.pt")
         torch.cuda.empty_cache()
 
-        print(f"----[GPU {gpu_id}] Epoch {epoch} Validation ----", flush=True)
+        print(f"---- Epoch {epoch} Validation ----", flush=True)
         model.eval()
         valid_loss = evaluate_model(
             batch_iter=dataloader_valid,
@@ -142,3 +142,4 @@ def train_main(
         monitor.flush()
         torch.cuda.empty_cache()
     monitor.close()
+    return model.module
