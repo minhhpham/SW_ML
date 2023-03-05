@@ -113,7 +113,6 @@ class TransformerClassifier(nn.Module):
             d_feed_fwd=d_feed_fwd,
             n_attn_heads=n_attn_heads,
             dropout=dropout,
-            n_out_classes=2
         )
         # class probabilities
         self.linear_output = nn.Linear(d_model*24, n_out_classes)

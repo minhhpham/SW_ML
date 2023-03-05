@@ -2,7 +2,7 @@ import torch
 from training.preprocess import batch_load_and_preprocess
 from tokenizers.vocab import create_NGram_vocab
 from tokenizers.NGram import nGram_tokenize
-from models.Transformer import Transformer
+from models.Transformer import TransformerClassifier
 from training.learning_rate import create_lr_scheduler
 from training import train_process
 from math import ceil
@@ -31,8 +31,8 @@ def main() -> None:
     # classify into match/mismatch
     y = torch.where(
         y >= CUTOFF_SW_SCORE,
-        torch.tensor(1, dtype=torch.int8),
-        torch.tensor(0, dtype=torch.int8),
+        torch.tensor(1, dtype=torch.int64),
+        torch.tensor(0, dtype=torch.int64),
     )
     # split train, validation, test 80/10/10
     valid_start = int(N_SAMPLES * 0.8)
@@ -51,13 +51,14 @@ def main() -> None:
     print("test shape: ", x1_test.shape, x2_test.shape, y_test.shape)
 
     # model
-    model = Transformer(
+    model = TransformerClassifier(
         vocab_size=len(vocab_nGram),
         stack_size=4,
         d_model=MODEL_SIZE,
         d_feed_fwd=2048,
         n_attn_heads=8,
-        dropout=0.1
+        dropout=0.1,
+        n_out_classes=2
     )
 
     # optimizer
@@ -80,7 +81,8 @@ def main() -> None:
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         batch_size=DATA_BATCH_SIZE,
-        verbose_freq=100
+        verbose_freq=100,
+        classifying=True
     )
 
 

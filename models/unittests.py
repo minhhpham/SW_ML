@@ -3,7 +3,7 @@ import sys
 import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
-from models.Transformer import Transformer, calculate_mask  # noqa
+from models.Transformer import TransformerClassifier, calculate_mask  # noqa
 import torch  # noqa
 from tokenizers.vocab import create_NGram_vocab  # noqa
 from tokenizers.NGram import nGram_tokenize  # noqa
@@ -30,13 +30,14 @@ def test1() -> None:
     print("x2: ", x2.shape)
     print("y : ", y.shape)
 
-    model = Transformer(
+    model = TransformerClassifier(
         vocab_size=len(vocab_4gram),
         stack_size=4,
         d_model=512,
         d_feed_fwd=2048,
         n_attn_heads=8,
-        dropout=0.1
+        dropout=0.1,
+        n_out_classes=2
     )
     # mask out positions where x1 or x2 are not padded
     mask = calculate_mask(x1, x2)
