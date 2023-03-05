@@ -4,10 +4,12 @@ import torch
 from inference.inference import evaluate_model
 import time
 from tqdm import tqdm
-from models.Transformer import Transformer, calculate_mask
+from models.Transformer import calculate_mask
 from training.batch import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-monitor = SummaryWriter()
+from training.monitor import TensorboardMonitor
+
+monitor = TensorboardMonitor()
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -60,7 +62,7 @@ def run_epoch(
         epoch_loss += loss_value
         n_samples_processed += y.shape[0]
         # update monitor
-        monitor.add_scalar(
+        monitor.writer.add_scalar(
             "Loss/train/batch",
             loss_value / y.shape[0],
             epoch_id * len(batch_iter) + i
@@ -73,13 +75,13 @@ def summarize_model(model: nn.Module, x1: Tensor, x2: Tensor):
     """summarize a model into the tensorboard monitor
     """
     mask = calculate_mask(x1, x2)
-    monitor.add_graph(model, (x1, x2, mask))
+    monitor.writer.add_graph(model, (x1, x2, mask))
 
 
 def train_main(
     train_data: Tuple[Tensor, Tensor, Tensor],
     valid_data: Tuple[Tensor, Tensor, Tensor],
-    model: Transformer,
+    model: nn.Module,
     loss_func: Callable[[Tensor, Tensor], float],
     optimizer: torch.optim.Optimizer,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
@@ -116,14 +118,14 @@ def train_main(
         # add train data to monitor
         learn_rate = optimizer.param_groups[0]["lr"]
         elapsed = time.time() - start_time
-        monitor.add_scalar("Loss/train/epoch", train_loss, epoch)
-        monitor.add_scalar("Learning rate", learn_rate, epoch)
-        monitor.add_scalar(
+        monitor.writer.add_scalar("Loss/train/epoch", train_loss, epoch)
+        monitor.writer.add_scalar("Learning rate", learn_rate, epoch)
+        monitor.writer.add_scalar(
             "samples/sec",
             len(dataloader_train.dataset) / elapsed,
             epoch
         )
-        monitor.flush()
+        monitor.writer.flush()
 
         # save model
         torch.save(model.module.state_dict(),
@@ -138,8 +140,8 @@ def train_main(
             loss_func=loss_func
         )
         # add valid data to monitor
-        monitor.add_scalar("Loss/valid", valid_loss, epoch)
-        monitor.flush()
+        monitor.writer.add_scalar("Loss/valid", valid_loss, epoch)
+        monitor.writer.flush()
         torch.cuda.empty_cache()
-    monitor.close()
+    monitor.writer.close()
     return model.module

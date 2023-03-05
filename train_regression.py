@@ -2,7 +2,7 @@ import torch
 from training.preprocess import batch_load_and_preprocess
 from tokenizers.vocab import create_NGram_vocab
 from tokenizers.NGram import nGram_tokenize
-from models.Transformer import Transformer
+from models.Transformer import TransformerRegressor
 from training.learning_rate import create_lr_scheduler
 from training import train_process
 from math import ceil
@@ -10,7 +10,7 @@ import functools
 
 
 NGRAM = 3
-N_SAMPLES = 1e8
+N_SAMPLES = 1e7
 INPUT_DIM = ceil(96 / NGRAM)
 MODEL_SIZE = 512
 DATA_BATCH_SIZE = 4096
@@ -44,7 +44,7 @@ def main() -> None:
     print("test shape: ", x1_test.shape, x2_test.shape, y_test.shape)
 
     # model
-    model = Transformer(
+    model = TransformerRegressor(
         vocab_size=len(vocab_nGram),
         stack_size=4,
         d_model=MODEL_SIZE,
@@ -52,6 +52,7 @@ def main() -> None:
         n_attn_heads=8,
         dropout=0.1
     )
+
     # optimizer
     optimizer = torch.optim.Adam(
         model.parameters(), lr=0.5, betas=(0.9, 0.98), eps=1e-9
