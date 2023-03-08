@@ -8,7 +8,7 @@ from models.Transformer import calculate_mask
 from training.batch import DataLoader
 from training.monitor import TensorboardMonitor
 
-monitor = TensorboardMonitor()
+monitor = TensorboardMonitor(background_upload=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

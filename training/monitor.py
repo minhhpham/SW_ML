@@ -13,20 +13,24 @@ class TensorboardMonitor:
     using the default logdir of runs/**CURRENT_DATETIME_HOSTNAME**
     """
 
-    def __init__(self):
+    def __init__(self, background_upload=True):
         self.writer = SummaryWriter()
-        self.uploader = subprocess.Popen(
-            ["tensorboard", "dev", "upload", "--logdir", "runs"],
-            preexec_fn=lambda *args: libc.prctl(1, signal.SIGTERM, 0, 0, 0),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-        )
-        time.sleep(2)
-        status = self.uploader.poll()
-        if status is None:
-            print("Tensorboard.dev uploader running ... ")
+        if background_upload:
+            self.uploader = subprocess.Popen(
+                ["tensorboard", "dev", "upload", "--logdir", "runs"],
+                preexec_fn=lambda *args: libc.prctl(1, signal.SIGTERM, 0, 0, 0),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+            )
+            time.sleep(2)
+            status = self.uploader.poll()
+            if status is None:
+                print("Tensorboard.dev uploader running ... ")
+            else:
+                print("Tensorboard.dev uploader exit with code ", status)
         else:
-            print("Tensorboard.dev uploader exit with code ", status)
+            self.uploader = None
 
     def stop(self):
-        self.uploader.terminate()
+        if self.uploader is not None:
+            self.uploader.terminate()
