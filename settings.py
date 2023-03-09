@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 
 from training.monitor import TensorboardMonitor
 
@@ -16,7 +16,9 @@ def init_settings() -> ArgumentParser:
     parser.add_argument(
         "-u", "--upload",
         type=bool, help="Upload to tensorboard.dev?",
-        default=False)
+        default=False,
+        action=BooleanOptionalAction
+    )
     parser.add_argument(
         "-v", "--verbose", type=int, default=0, help="Verbosity level")
     args = parser.parse_args()
