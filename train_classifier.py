@@ -1,7 +1,6 @@
-import argparse
 import functools
 from math import ceil
-
+from models.dna2vec import DNA2vecAdapter
 import torch
 
 import settings
@@ -10,13 +9,10 @@ from tokenizers.NGram import nGram_tokenize
 from tokenizers.vocab import create_NGram_vocab
 from training import train_process
 from training.learning_rate import create_lr_scheduler
-from training.monitor import TensorboardMonitor
 from training.preprocess import batch_load_and_preprocess
 
 NGRAM = 3
-N_SAMPLES = 1e8
 INPUT_DIM = ceil(96 / NGRAM)
-MODEL_SIZE = 512
 DATA_BATCH_SIZE = 4096
 tokenize_3gram = functools.partial(nGram_tokenize, N=NGRAM)
 CUTOFF_SW_SCORE = 30  # cutoff score to classify match/mismatch
@@ -27,7 +23,7 @@ def main() -> None:
     vocab_nGram = create_NGram_vocab(NGRAM)
     x1, x2, y = batch_load_and_preprocess(
         datapath="/data/minhpham/SW-ML-data/SRR622461",
-        n_samples_limit=N_SAMPLES,
+        n_samples_limit=settings.N_SAMPLES,
         tokenizer=tokenize_3gram,
         vocab=vocab_nGram,
         input_fixed_dim=INPUT_DIM
@@ -39,8 +35,8 @@ def main() -> None:
         torch.tensor(0, dtype=torch.int64),
     )
     # split train, validation, test 80/10/10
-    valid_start = int(N_SAMPLES * 0.8)
-    test_start = int(N_SAMPLES * 0.9)
+    valid_start = int(settings.N_SAMPLES * 0.8)
+    test_start = int(settings.N_SAMPLES * 0.9)
     x1_train = x1[:valid_start]
     x2_train = x2[:valid_start]
     y_train = y[:valid_start]
@@ -54,16 +50,20 @@ def main() -> None:
     print("valid shape: ", x1_valid.shape, x2_valid.shape, y_valid.shape)
     print("test shape: ", x1_test.shape, x2_test.shape, y_test.shape)
 
-    # model
+    # model: use pretrained embed vector from dna2vec
     model = TransformerClassifier(
         vocab_size=len(vocab_nGram),
         stack_size=4,
-        d_model=MODEL_SIZE,
+        d_embed=100,
         d_feed_fwd=2048,
-        n_attn_heads=8,
+        n_attn_heads=4,
         dropout=0.1,
         n_out_classes=2
     )
+    # load pretrained embeded vector from dna2vec
+    adapter = DNA2vecAdapter()
+    dna2vec_weights = adapter.get_embeddings(vocab_nGram)
+    model.encoder.embed = torch.nn.Embedding.from_pretrained(dna2vec_weights)
 
     # optimizer
     optimizer = torch.optim.Adam(
@@ -71,7 +71,7 @@ def main() -> None:
     )
     lr_scheduler = create_lr_scheduler(
         optimizer=optimizer,
-        model_size=MODEL_SIZE,
+        model_size=100,
         factor=1.0,
         warmup=400
     )
@@ -91,15 +91,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-n", "--name",
-        type=str, help="name for upload to Tensorboard",
-        default="Test")
-    parser.add_argument(
-        "-v", "--verbose", type=int, default=0, help="Verbosity level")
-    args = parser.parse_args()
-    settings.RUN_NAME = args.name
-    settings.VERBOSE = args.verbose
-    settings.TB_MONITOR = TensorboardMonitor(background_upload=True)
+    settings.init_settings()
     main()

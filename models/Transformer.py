@@ -13,7 +13,7 @@ class TransformerEncoder(nn.Module):
         self,
         vocab_size: int,
         stack_size: int,
-        d_model=512,
+        d_embed=512,
         d_feed_fwd=2048,
         n_attn_heads=8,
         dropout=0.1
@@ -21,27 +21,26 @@ class TransformerEncoder(nn.Module):
         """
         vocab_size: number of words in vocab
         stack_size: number of stacked encoding layers
-        d_model: output size of attention, feed forward, and position encoding
         d_feed_fwd: hidden layer size in feed forward
         n_attn_heads: number of attention heads
         dropout: dropout rate
         """
         super().__init__()
-        self.embed = Embeddings(vocab_size=vocab_size, out_dim=d_model)
-        self.position = PositionalEncoding(d_model=d_model, dropout=dropout)
+        self.embed = Embeddings(vocab_size=vocab_size, out_dim=d_embed)
+        self.position = PositionalEncoding(d_model=d_embed, dropout=dropout)
         self.attention = MultiHeadedAttention(
             n_heads=n_attn_heads,
-            size=d_model,
+            size=d_embed,
             dropout=dropout
         )
         self.feed_fwd = FeedForward(
-            input_dim=d_model,
+            input_dim=d_embed,
             hidden_dim=d_feed_fwd,
             dropout=dropout
         )
         self.encoder = Encoder(
             EncoderLayer(
-                size=d_model,
+                size=d_embed,
                 attention=self.attention,
                 feed_forward=self.feed_fwd,
                 dropout=dropout
@@ -67,7 +66,7 @@ class TransformerRegressor(nn.Module):
         self,
         vocab_size: int,
         stack_size: int,
-        d_model=512,
+        d_embed=512,
         d_feed_fwd=2048,
         n_attn_heads=8,
         dropout=0.1
@@ -76,13 +75,13 @@ class TransformerRegressor(nn.Module):
         self.encoder = TransformerEncoder(
             vocab_size=vocab_size,
             stack_size=stack_size,
-            d_model=d_model,
+            d_embed=d_embed,
             d_feed_fwd=d_feed_fwd,
             n_attn_heads=n_attn_heads,
             dropout=dropout
         )
         # linear output
-        self.linear_output = nn.Linear(d_model*24, 1)
+        self.linear_output = nn.Linear(d_embed*24, 1)
         # Initialize parameters with Glorot / fan_avg.
         for p in self.linear_output.parameters():
             if p.dim() > 1:
@@ -99,7 +98,7 @@ class TransformerClassifier(nn.Module):
         self,
         vocab_size: int,
         stack_size: int,
-        d_model=512,
+        d_embed=512,
         d_feed_fwd=2048,
         n_attn_heads=8,
         dropout=0.1,
@@ -109,13 +108,13 @@ class TransformerClassifier(nn.Module):
         self.encoder = TransformerEncoder(
             vocab_size=vocab_size,
             stack_size=stack_size,
-            d_model=d_model,
+            d_embed=d_embed,
             d_feed_fwd=d_feed_fwd,
             n_attn_heads=n_attn_heads,
             dropout=dropout,
         )
         # class probabilities
-        self.linear_output = nn.Linear(d_model*24, n_out_classes)
+        self.linear_output = nn.Linear(d_embed*24, n_out_classes)
         # Initialize parameters with Glorot / fan_avg.
         for p in self.linear_output.parameters():
             if p.dim() > 1:

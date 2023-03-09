@@ -5,9 +5,21 @@ from ctypes import cdll
 
 from torch.utils.tensorboard import SummaryWriter
 
-import settings
-
 libc = cdll.LoadLibrary('libc.so.6')
+
+
+class DummySummaryWriter:
+    """A dummy summary writer that does nothing
+    """
+
+    def add_scalar(self, *args, **kwargs):
+        pass
+
+    def add_graph(self, *args, **kwargs):
+        pass
+
+    def flush(self, *args, **kwargs):
+        pass
 
 
 class TensorboardMonitor:
@@ -17,13 +29,13 @@ class TensorboardMonitor:
     using the default logdir of runs/**CURRENT_DATETIME_HOSTNAME**
     """
 
-    def __init__(self, background_upload=True):
-        self.writer = SummaryWriter()
-        if background_upload:
+    def __init__(self, run_name: str, monitoring=True):
+        if monitoring:
+            self.writer = SummaryWriter()
             self.uploader = subprocess.Popen(
                 ["tensorboard", "dev", "upload",
                  "--logdir", "runs",
-                 "--name", settings.RUN_NAME],
+                 "--name", run_name],
                 preexec_fn=lambda *args: libc.prctl(
                     1, signal.SIGTERM, 0, 0, 0
                 ),
@@ -37,6 +49,7 @@ class TensorboardMonitor:
             else:
                 print("Tensorboard.dev uploader exit with code ", status)
         else:
+            self.writer = DummySummaryWriter()
             self.uploader = None
 
     def stop(self):

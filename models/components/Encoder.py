@@ -14,7 +14,7 @@ class EncoderLayer(nn.Module):
     ):
         """
         Args:
-            size (int): size of attention layer
+            size (int): size of input
             attention (nn.Module): attention layer (Q, K, V) -> Y
             feed_forward (nn.Module): feed forward layer (X) => Y
             dropout (float): dropout rate

@@ -1,4 +1,3 @@
-import argparse
 import functools
 from math import ceil
 
@@ -10,13 +9,11 @@ from tokenizers.NGram import nGram_tokenize
 from tokenizers.vocab import create_NGram_vocab
 from training import train_process
 from training.learning_rate import create_lr_scheduler
-from training.monitor import TensorboardMonitor
 from training.preprocess import batch_load_and_preprocess
 
 NGRAM = 3
-N_SAMPLES = 1e7
+N_SAMPLES = settings.N_SAMPLES
 INPUT_DIM = ceil(96 / NGRAM)
-MODEL_SIZE = 512
 DATA_BATCH_SIZE = 4096
 tokenize_3gram = functools.partial(nGram_tokenize, N=NGRAM)
 
@@ -51,7 +48,6 @@ def main() -> None:
     model = TransformerRegressor(
         vocab_size=len(vocab_nGram),
         stack_size=4,
-        d_model=MODEL_SIZE,
         d_feed_fwd=2048,
         n_attn_heads=8,
         dropout=0.1
@@ -63,7 +59,7 @@ def main() -> None:
     )
     lr_scheduler = create_lr_scheduler(
         optimizer=optimizer,
-        model_size=MODEL_SIZE,
+        model_size=100,
         factor=1.0,
         warmup=400
     )
@@ -84,15 +80,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-n", "--name",
-        type=str, help="name for upload to Tensorboard",
-        default="Test")
-    parser.add_argument(
-        "-v", "--verbose", type=int, default=0, help="Verbosity level")
-    args = parser.parse_args()
-    settings.RUN_NAME = args.name
-    settings.VERBOSE = args.verbose
-    settings.TB_MONITOR = TensorboardMonitor(background_upload=True)
+    settings.init_settings()
     main()

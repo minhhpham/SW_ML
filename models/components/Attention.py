@@ -41,7 +41,7 @@ class MultiHeadedAttention(nn.Module):
             dropout (float, optional): _description_. Defaults to 0.1.
         """
         super().__init__()
-        assert size % n_heads == 0
+        assert size % n_heads == 0, "input size must be divisible by n_heads"
         # We assume d_v always equals d_k
         self.d_k = size // n_heads
         self.n_heads = n_heads

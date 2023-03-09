@@ -3,8 +3,8 @@ from torchtext.vocab import Vocab, build_vocab_from_iterator
 
 
 DNA_CHARS = ["A", "C", "G", "T"]
-PAD_TOKEN = "0000"
-# 0000 is the special padding for shorter sequences
+# the special padding token for shorter sequences
+PAD_TOKEN = "NNN"
 
 
 def generate_words(length: int, chars=DNA_CHARS):

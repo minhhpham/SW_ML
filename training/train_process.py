@@ -108,7 +108,7 @@ def train_main(
     num_classes: int = None,  # None if regression problem
 ) -> nn.Module:
     global monitor
-    monitor = settings.TB_MONITOR
+    monitor = settings.TB_MONITOR_OBJ
     # create data loaders
     x1, x2, y = train_data
     dataloader_train = DataLoader(x1, x2, y, batch_size=batch_size)
