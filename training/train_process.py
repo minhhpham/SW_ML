@@ -1,14 +1,15 @@
-from typing import Iterable, Callable, Tuple
-from torch import nn, Tensor
-import torch
-from inference.inference import evaluate_model, count_accurate
 import time
+from typing import Callable, Iterable, Tuple
+
+import torch
+from torch import Tensor, nn
 from tqdm import tqdm
+
+import settings
+from inference.inference import evaluate_model
+from inference.metrics import ClassificationMetrics, ClassMetricsTracker
 from models.Transformer import calculate_mask
 from training.batch import DataLoader
-from training.monitor import TensorboardMonitor
-
-monitor = TensorboardMonitor(background_upload=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,8 +23,8 @@ def run_epoch(
     scheduler: torch.optim.lr_scheduler._LRScheduler,
     accum_iter=1,
     verbose_freq=40,
-    classifying=False,  # is this a classification training?
-) -> Tuple[float, float]:
+    num_classes: int = None,  # None if regression problem
+) -> Tuple[float, ClassificationMetrics]:
     """Run all data through a model for a single epoch
 
     Args:
@@ -34,13 +35,17 @@ def run_epoch(
         scheduler (torch.optim.lr_scheduler._LRScheduler): learning rate func
         accum_iter (int): per number of iterations to call optimizer.step()
         verbose_freq: per number of batches to print progress
+        num_classes: number of classes (None if regression)
 
     Returns:
-        Tuple[float, float]: average loss and accuracy per sample
+        Tuple[float, ClassificationMetrics]:
+            average loss per sample and classification metrics
     """
     n_samples_processed = 0
-    total_accu_cnt = 0 if classifying else None
+    if num_classes is not None:
+        class_metrics_tracker = ClassMetricsTracker(num_classes)
     epoch_loss = 0
+    # i = training batch index
     for i, batch in tqdm(enumerate(batch_iter), total=len(batch_iter)):
         x1, x2, y = batch
         x1 = x1.to(device)
@@ -63,9 +68,8 @@ def run_epoch(
         scheduler.step()
         # update total loss across all batches
         epoch_loss += loss_value
-        if classifying:
-            batch_accu_cnt = count_accurate(y_hat, y)
-            total_accu_cnt += batch_accu_cnt
+        if num_classes is not None:
+            batch_metrics = class_metrics_tracker.add_new_batch(y_hat, y)
         n_samples_processed += y.shape[0]
         # update monitor
         monitor.writer.add_scalar(
@@ -73,16 +77,13 @@ def run_epoch(
             loss_value / y.shape[0],
             epoch_id * len(batch_iter) + i
         )
-        if classifying:
-            monitor.writer.add_scalar(
-                "Accuracy/train/batch",
-                batch_accu_cnt / y.shape[0],
-                epoch_id * len(batch_iter) + i
-            )
+        if num_classes is not None:
+            batch_metrics.monitor_add_scalars(
+                monitor.writer, step=i, tag_suffix="train/batch")
         del x1, x2, y, mask, loss
     return (
         epoch_loss / n_samples_processed,
-        total_accu_cnt / n_samples_processed if classifying else None
+        class_metrics_tracker.get_average_metrics() if num_classes else None
     )
 
 
@@ -104,8 +105,10 @@ def train_main(
     num_epochs=100,
     model_name="Transformer",
     verbose_freq=40,
-    classifying=False,  # is this a classification training?
+    num_classes: int = None,  # None if regression problem
 ) -> nn.Module:
+    global monitor
+    monitor = settings.TB_MONITOR
     # create data loaders
     x1, x2, y = train_data
     dataloader_train = DataLoader(x1, x2, y, batch_size=batch_size)
@@ -122,7 +125,7 @@ def train_main(
         print(f"---- Epoch {epoch} Training ----", flush=True)
         start_time = time.time()
         model.train()
-        train_loss, train_accu = run_epoch(
+        train_loss, class_metrics_epoch = run_epoch(
             epoch_id=epoch,
             batch_iter=dataloader_train,
             model=model,
@@ -130,7 +133,7 @@ def train_main(
             optimizer=optimizer,
             scheduler=lr_scheduler,
             verbose_freq=verbose_freq,
-            classifying=classifying
+            num_classes=num_classes
         )
         # add train data to monitor
         learn_rate = optimizer.param_groups[0]["lr"]
@@ -142,10 +145,9 @@ def train_main(
             len(dataloader_train.dataset) / elapsed,
             epoch
         )
-        if classifying:
-            if train_accu is None:
-                raise Exception("Train accuracy is None")
-            monitor.writer.add_scalar("Accuracy/train", train_accu, epoch)
+        if num_classes is not None:
+            class_metrics_epoch.monitor_add_scalars(
+                writer=monitor.writer, step=epoch, tag_suffix="train/epoch")
         monitor.writer.flush()
 
         # save model
@@ -155,18 +157,17 @@ def train_main(
 
         print(f"---- Epoch {epoch} Validation ----", flush=True)
         model.eval()
-        valid_loss, valid_accu = evaluate_model(
+        valid_loss, class_metrics = evaluate_model(
             batch_iter=dataloader_valid,
             model=model,
             loss_func=loss_func,
-            classifying=True
+            num_classes=num_classes
         )
         # add valid data to monitor
         monitor.writer.add_scalar("Loss/valid", valid_loss, epoch)
-        if classifying:
-            if valid_accu is None:
-                raise Exception("Validation accuracy is None")
-            monitor.writer.add_scalar("Accuracy/valid", valid_accu, epoch)
+        if num_classes is not None:
+            class_metrics.monitor_add_scalars(
+                writer=monitor.writer, step=epoch, tag_suffix="valid/epoch")
         monitor.writer.flush()
         torch.cuda.empty_cache()
     monitor.writer.close()

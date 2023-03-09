@@ -1,16 +1,20 @@
-import torch
-from training.preprocess import batch_load_and_preprocess
-from tokenizers.vocab import create_NGram_vocab
-from tokenizers.NGram import nGram_tokenize
-from models.Transformer import TransformerClassifier
-from training.learning_rate import create_lr_scheduler
-from training import train_process
-from math import ceil
+import argparse
 import functools
+from math import ceil
 
+import torch
+
+import settings
+from models.Transformer import TransformerClassifier
+from tokenizers.NGram import nGram_tokenize
+from tokenizers.vocab import create_NGram_vocab
+from training import train_process
+from training.learning_rate import create_lr_scheduler
+from training.monitor import TensorboardMonitor
+from training.preprocess import batch_load_and_preprocess
 
 NGRAM = 3
-N_SAMPLES = 1e8
+N_SAMPLES = 1e5
 INPUT_DIM = ceil(96 / NGRAM)
 MODEL_SIZE = 512
 DATA_BATCH_SIZE = 4096
@@ -82,9 +86,20 @@ def main() -> None:
         lr_scheduler=lr_scheduler,
         batch_size=DATA_BATCH_SIZE,
         verbose_freq=100,
-        classifying=True
+        num_classes=2
     )
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-n", "--name",
+        type=str, help="name for upload to Tensorboard",
+        default="Test")
+    parser.add_argument(
+        "-v", "--verbose", type=int, default=0, help="Verbosity level")
+    args = parser.parse_args()
+    settings.RUN_NAME = args.name
+    settings.VERBOSE = args.verbose
+    settings.TB_MONITOR = TensorboardMonitor(background_upload=True)
     main()

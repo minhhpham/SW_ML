@@ -1,8 +1,12 @@
-from torch.utils.tensorboard import SummaryWriter
+import signal
 import subprocess
 import time
-import signal
 from ctypes import cdll
+
+from torch.utils.tensorboard import SummaryWriter
+
+import settings
+
 libc = cdll.LoadLibrary('libc.so.6')
 
 
@@ -17,8 +21,12 @@ class TensorboardMonitor:
         self.writer = SummaryWriter()
         if background_upload:
             self.uploader = subprocess.Popen(
-                ["tensorboard", "dev", "upload", "--logdir", "runs"],
-                preexec_fn=lambda *args: libc.prctl(1, signal.SIGTERM, 0, 0, 0),
+                ["tensorboard", "dev", "upload",
+                 "--logdir", "runs",
+                 "--name", settings.RUN_NAME],
+                preexec_fn=lambda *args: libc.prctl(
+                    1, signal.SIGTERM, 0, 0, 0
+                ),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
             )
