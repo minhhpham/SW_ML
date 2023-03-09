@@ -14,7 +14,7 @@ from training.monitor import TensorboardMonitor
 from training.preprocess import batch_load_and_preprocess
 
 NGRAM = 3
-N_SAMPLES = 1e5
+N_SAMPLES = 1e8
 INPUT_DIM = ceil(96 / NGRAM)
 MODEL_SIZE = 512
 DATA_BATCH_SIZE = 4096
