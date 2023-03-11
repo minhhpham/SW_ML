@@ -6,16 +6,22 @@ from training.monitor import TensorboardMonitor
 def init_settings() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument(
-        "-n", "--name",
-        type=str, help="name for upload to Tensorboard",
+        "-e", "--exp_name",
+        type=str,
+        help="experiment name for upload to Tensorboard at exp_name/run_name",
         default="Test")
+    parser.add_argument(
+        "-r", "--run_name",
+        type=str,
+        help="run name for upload to Tensorboard at exp_name/run_name",
+        default="Test0")
     parser.add_argument(
         "-N", "--nsamples",
         type=int, help="Number of data samples",
         default=1e6)
     parser.add_argument(
-        "-u", "--upload",
-        type=bool, help="Upload to tensorboard.dev?",
+        "-m", "--monitor",
+        type=bool, help="Monitor with Tensorboard?",
         default=False,
         action=BooleanOptionalAction
     )
@@ -23,17 +29,22 @@ def init_settings() -> ArgumentParser:
         "-v", "--verbose", type=int, default=0, help="Verbosity level")
     args = parser.parse_args()
 
-    global RUN_NAME, VERBOSE, TB_MONITOR_OBJ, TB_UPLOAD, N_SAMPLES
-    RUN_NAME = args.name
+    global EXP_NAME, RUN_NAME, VERBOSE, TB_MONITOR, TB_MONITOR_OBJ, N_SAMPLES
+    EXP_NAME = args.exp_name
+    RUN_NAME = args.run_name
     VERBOSE = args.verbose
-    TB_UPLOAD = args.upload
+    TB_MONITOR = args.monitor
     TB_MONITOR_OBJ = TensorboardMonitor(
-        run_name=RUN_NAME, monitoring=TB_UPLOAD)
+        monitoring=TB_MONITOR,
+        exp_name=EXP_NAME,
+        run_name=RUN_NAME,
+    )
     N_SAMPLES = args.nsamples
 
     print("Settings:")
-    print(f"    RUN_NAME  {RUN_NAME}")
-    print(f"    TB_UPLOAD {TB_UPLOAD}")
-    print(f"    N_SAMPLES {N_SAMPLES:,}")
-    print(f"    VERBOSE   {VERBOSE}")
+    print(f"    EXPERIMENT {EXP_NAME}")
+    print(f"    RUN_NAME   {RUN_NAME}")
+    print(f"    MONITORING {TB_MONITOR}")
+    print(f"    N_SAMPLES  {N_SAMPLES:,}")
+    print(f"    VERBOSE    {VERBOSE}")
     return parser

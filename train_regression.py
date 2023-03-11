@@ -12,13 +12,13 @@ from training.learning_rate import create_lr_scheduler
 from training.preprocess import batch_load_and_preprocess
 
 NGRAM = 3
-N_SAMPLES = settings.N_SAMPLES
 INPUT_DIM = ceil(96 / NGRAM)
 DATA_BATCH_SIZE = 4096
 tokenize_3gram = functools.partial(nGram_tokenize, N=NGRAM)
 
 
 def main() -> None:
+    N_SAMPLES = settings.N_SAMPLES
     # load data
     vocab_nGram = create_NGram_vocab(NGRAM)
     x1, x2, y = batch_load_and_preprocess(

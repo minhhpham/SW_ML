@@ -1,6 +1,5 @@
-import signal
-import subprocess
-import time
+import argparse
+import os
 from ctypes import cdll
 
 from torch.utils.tensorboard import SummaryWriter
@@ -26,28 +25,13 @@ class TensorboardMonitor:
     """
     provide a summary writer and a Tensorboard.dev uploader
     the uploader runs in the background
-    using the default logdir of runs/**CURRENT_DATETIME_HOSTNAME**
+    logdir = tensorboard/exp_name/run_name
     """
 
-    def __init__(self, run_name: str, monitoring=True):
+    def __init__(self, exp_name: str, run_name: str, monitoring=True):
         if monitoring:
-            self.writer = SummaryWriter()
-            self.uploader = subprocess.Popen(
-                ["tensorboard", "dev", "upload",
-                 "--logdir", "runs",
-                 "--name", run_name],
-                preexec_fn=lambda *args: libc.prctl(
-                    1, signal.SIGTERM, 0, 0, 0
-                ),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
-            )
-            time.sleep(2)
-            status = self.uploader.poll()
-            if status is None:
-                print("Tensorboard.dev uploader running ... ")
-            else:
-                print("Tensorboard.dev uploader exit with code ", status)
+            log_dir = f"tensorboard/{exp_name}/{run_name}"
+            self.writer = SummaryWriter(log_dir=log_dir)
         else:
             self.writer = DummySummaryWriter()
             self.uploader = None
@@ -55,3 +39,28 @@ class TensorboardMonitor:
     def stop(self):
         if self.uploader is not None:
             self.uploader.terminate()
+
+
+def main():
+    parser = argparse.ArgumentParser("Upload data to Tensorboard")
+    subparsers = parser.add_subparsers(dest="command")
+    upload_parser = subparsers.add_parser("upload",
+                                          help="Upload data to Tensorboard")
+    upload_parser.add_argument(
+        "-e", "--exp_name",
+        type=str,
+        help="experiment name for upload to Tensorboard at exp_name/run_name",
+        default="Test"
+    )
+    args = parser.parse_args()
+    exp_name = args.exp_name
+    print(f"uploading experiment {exp_name}")
+    os.execlp(
+        "tensorboard", "tensorboard", "dev", "upload",
+        "--logdir", f"tensorboard/{exp_name}",
+        "--name", exp_name,
+    )
+
+
+if __name__ == "__main__":
+    main()

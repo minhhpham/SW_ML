@@ -47,7 +47,9 @@ def evaluate_model(
                 class_metrics.add_new_batch(y_hat, y)
             n_samples_processed += y.shape[0]
 
+    avg_class_metrics = None if num_classes is None \
+        else class_metrics.get_average_metrics()
     return (
         total_loss / n_samples_processed,
-        class_metrics.get_average_metrics()
+        avg_class_metrics
     )
